@@ -225,7 +225,7 @@ class Fireworks(BaseEffect):
         'Hexy Stars',
         'Metaballs',
         'Particle Storm',
-        'Prism Lattice',
+        'Wormhole',
         'Psychedelic',
         'Audio Sine',
         'Tunnel',

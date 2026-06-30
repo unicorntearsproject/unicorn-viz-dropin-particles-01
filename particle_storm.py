@@ -191,7 +191,7 @@ class ParticleStorm(BaseEffect):
         'Hexy Stars',
         'Metaballs',
         'Plasma',
-        'Prism Lattice',
+        'Wormhole',
         'Psychedelic',
         'Audio Sine',
         'Starfield',

@@ -263,7 +263,7 @@ class Starfield(BaseEffect):
         'Metaballs',
         'Particle Storm',
         'Plasma',
-        'Prism Lattice',
+        'Wormhole',
         'Psychedelic',
         'Tunnel',
         'Tron Grid',
