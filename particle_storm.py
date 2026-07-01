@@ -181,7 +181,7 @@ class ParticleStorm(BaseEffect):
 
     NAME   = "Particle Storm"
     AUTHOR = "unicorn-viz"
-    TAGS = ["particles", "futuristic"]
+    TAGS = ["particles"]
     PING_PONG_FRIENDS = [
         'Rainbow Trance',
         'Tunnel',

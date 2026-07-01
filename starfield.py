@@ -253,7 +253,7 @@ class Starfield(BaseEffect):
 
     NAME   = "Starfield"
     AUTHOR = "unicorn-viz"
-    TAGS = ["particles", "classic", "futuristic"]
+    TAGS = ["particles", "classic"]
     PING_PONG_FRIENDS = [
         'Cosmos',
         'Alien Invasion',
