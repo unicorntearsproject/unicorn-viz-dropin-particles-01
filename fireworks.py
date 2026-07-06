@@ -217,7 +217,7 @@ class Fireworks(BaseEffect):
 
     NAME   = "Fireworks"
     AUTHOR = "unicorn-viz"
-    TAGS = ["particles", "classic", "celebration"]
+    TAGS = ['particles', 'classic', 'celebration', 'energetic']
     PING_PONG_FRIENDS = [
         'Starfield',
         'Cosmos',
