@@ -209,8 +209,16 @@ class ParticleStorm(BaseEffect):
     _ATTRS  = ["in_pos", "in_vel", "in_life", "in_seed", "in_hue"]
     _VARY   = ["out_pos", "out_vel", "out_life", "out_seed", "out_hue"]
 
+    # Live particle budget bounds (the config editor's Effects tab pins
+    # 'particles'; the transform-feedback buffers are rebuilt when it moves).
+    _MIN_PARTICLES = 10_000
+    _MAX_PARTICLES = 600_000
+
     def _init(self) -> None:
-        self.parameters = {"speed": float(self.config.get("speed", 1.0))}
+        self.parameters = {
+            "speed": float(self.config.get("speed", 1.0)),
+            "particles": float(self.config.get("particles", _NUM_PARTICLES)),
+        }
         self._bass   = 0.0
         self._mid    = 0.0
         self._treble = 0.0
@@ -220,8 +228,34 @@ class ParticleStorm(BaseEffect):
         self._o1 = (0.3, -0.2)
         self._o2 = (-0.3, 0.25)
 
+        self._update_prog = self.ctx.program(
+            vertex_shader=_UPDATE_VERT,
+            varyings=self._VARY,
+        )
+        self._render_prog = self.ctx.program(
+            vertex_shader=_RENDER_VERT,
+            fragment_shader=_RENDER_FRAG,
+        )
+        self._n = 0
+        self._alloc_particles(self._requested_particles())
+
+    def _requested_particles(self) -> int:
+        """The pinned/config particle count, clamped to the supported range."""
+        return int(max(self._MIN_PARTICLES,
+                       min(self._MAX_PARTICLES, float(self.parameters["particles"]))))
+
+    def _release_particles(self) -> None:
+        for name in ("_update_vao_a", "_update_vao_b", "_render_vao_a", "_render_vao_b",
+                     "_vbo_a", "_vbo_b"):
+            obj = getattr(self, name, None)
+            if obj is not None:
+                obj.release()
+                setattr(self, name, None)
+
+    def _alloc_particles(self, N: int) -> None:
+        """(Re)build the ping-pong buffers and VAOs for N particles."""
+        self._release_particles()
         rng = self.rng
-        N = _NUM_PARTICLES
         pos  = rng.uniform(-1.0,  1.0, (N, 2)).astype(np.float32)
         vel  = rng.uniform(-0.2,  0.2, (N, 2)).astype(np.float32)
         life = rng.uniform( 0.0,  2.8,  N     ).astype(np.float32)
@@ -231,15 +265,6 @@ class ParticleStorm(BaseEffect):
 
         self._vbo_a = self.ctx.buffer(data.tobytes())
         self._vbo_b = self.ctx.buffer(data.tobytes())
-
-        self._update_prog = self.ctx.program(
-            vertex_shader=_UPDATE_VERT,
-            varyings=self._VARY,
-        )
-        self._render_prog = self.ctx.program(
-            vertex_shader=_RENDER_VERT,
-            fragment_shader=_RENDER_FRAG,
-        )
 
         def make_update_vao(src: moderngl.Buffer) -> moderngl.VertexArray:
             return self.ctx.vertex_array(
@@ -259,9 +284,13 @@ class ParticleStorm(BaseEffect):
         self._render_vao_a = make_render_vao(self._vbo_a)
         self._render_vao_b = make_render_vao(self._vbo_b)
         self._ping = True
+        self._n = int(N)
 
     def update(self, dt: float, audio: AudioData) -> None:
         super().update(dt, audio)
+        wanted = self._requested_particles()
+        if wanted != self._n:
+            self._alloc_particles(wanted)
         self._bass   = audio.bass_n
         self._mid    = audio.mid_n
         self._treble = audio.treble_n
@@ -292,7 +321,7 @@ class ParticleStorm(BaseEffect):
 
         src_vao = self._update_vao_a if self._ping else self._update_vao_b
         dst_vbo = self._vbo_b        if self._ping else self._vbo_a
-        src_vao.transform(dst_vbo, moderngl.POINTS, vertices=_NUM_PARTICLES)
+        src_vao.transform(dst_vbo, moderngl.POINTS, vertices=self._n)
         self._ping = not self._ping
 
     def render(self) -> None:
@@ -306,16 +335,12 @@ class ParticleStorm(BaseEffect):
         rp["iTime"].value       = self.time
 
         render_vao = self._render_vao_b if self._ping else self._render_vao_a
-        render_vao.render(moderngl.POINTS, vertices=_NUM_PARTICLES)
+        render_vao.render(moderngl.POINTS, vertices=self._n)
 
         self.ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
 
     def destroy(self) -> None:
-        for obj in [
-            self._update_vao_a, self._update_vao_b,
-            self._render_vao_a, self._render_vao_b,
-            self._vbo_a, self._vbo_b,
-            self._update_prog, self._render_prog,
-        ]:
+        self._release_particles()
+        for obj in [self._update_prog, self._render_prog]:
             obj.release()
 
